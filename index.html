@@ -137,6 +137,14 @@ details[open]>summary::after{content:"–"}
 .hindex div{display:flex;flex-direction:column;align-items:flex-start}
 .hindex div button{background:none;border:0;padding:5px 0;min-height:32px;cursor:pointer;color:var(--ink);font-size:15px;text-align:left}
 .hindex div button:hover{color:var(--ad);text-decoration:underline}
+/* hoy: plan del día */
+.dayplan{margin:0 0 18px}.dayplan .pg{margin:0 0 14px}.dayplan .pg p{margin:0 0 6px;font-size:14px;color:var(--soft)}
+.pchips{display:flex;flex-wrap:wrap;gap:6px}
+.pchips button{min-height:36px;padding:0 12px;border:1.5px solid var(--c);background:transparent;color:var(--ink);font-weight:600;font-size:13.5px;cursor:pointer;border-radius:18px}
+.pchips button[aria-pressed=true]{background:var(--c);color:#fff;border-color:var(--c)}
+.pchips button:hover{border-color:var(--cd)}
+.path .hit{border-radius:50%}
+.path .hit[aria-pressed=true]{outline:1.5px dotted var(--soft)!important;outline-offset:8px!important}
 /* paleta: un color por área, todo sobre el crema */
 :root{--paper:transparent;--bluesoft:color-mix(in srgb,var(--bluetop) 32%,transparent)}
 :root[data-area]:not([data-area='']){--mist:color-mix(in srgb,var(--bluetop) 70%,var(--blue));--stone:color-mix(in srgb,var(--blue) 55%,var(--bg))}
@@ -352,7 +360,7 @@ nav a[data-nav=hoy]::before{background:#ec8a1c}nav a[data-nav=habitos]::before{b
 /* ---------- datos fijos ---------- */
 const HABITS=[
 {k:'ej',n:'Ejercicio'},{k:'med',n:'Meditación'},{k:'esc',n:'Escritura de la mañana'},{k:'cel',n:'Primera hora sin celular'},{k:'foto',n:'Fotografía'},
-{k:'est',n:'Lectura de estudio'},{k:'emp',n:'Búsqueda de empleo'},{k:'cie',n:'Cierre del día'},{k:'yoga',n:'Yoga'},{k:'lit',n:'Literatura'}];
+{k:'est',n:'Lectura de estudio'},{k:'emp',n:'Trabajo e ingresos'},{k:'cie',n:'Cierre del día'},{k:'yoga',n:'Yoga'},{k:'lit',n:'Literatura'}];
 const FRANJAS={m:'Mañana · fija',d:'Día · flexible',n:'Noche · fija'};
 const STEPS=[
 {k:'ej',f:'m',n:'Ejercicio',s:'Ejercicio',ideal:30,min:15},
@@ -367,7 +375,19 @@ const STEPS=[
 {k:'cie',f:'d',n:'Cierre del día',s:'Cierre',ideal:10,min:5},
 {k:'yoga',f:'n',n:'Yoga',s:'Yoga',ideal:20,min:10},
 {k:'lit',f:'n',n:'Literatura',s:'Literatura',ideal:30,min:10}];
-const activeSteps=()=>STEPS.filter(s=>s.toggle||ideal(s)>0);
+const ACTS={m:[['ref','Buscar referentes','foto','arte'],['leer','Leer teoría y fotolibros','est','lectura'],['conv','Buscar convocatorias','foto','arte'],['apl','Aplicar a convocatorias','foto','arte'],['edit','Escanear y editar','foto','arte'],['salida','Salir a tomar fotos · todo el día','foto','arte']],
+  t:[['emp','Buscar trabajo','emp','finanzas'],['arq','Proyecto de arquitectura','emp','finanzas'],['neg','Modelo de negocio digital','emp','finanzas']]};
+const blockLen=g=>{const v=(S.conf||{})['b'+g];return v===undefined?180:Number(v)||0};
+function stepsFor(date){const day=dayOf(date),mins=day.mins||{};
+  if(!day.plan&&['foto','foto2','est','emp'].some(k=>mins[k]))return STEPS.filter(s=>s.toggle||ideal(s)>0).map(s=>({...s,id:s.toggle?0:ideal(s),grp:s.f==='m'?'mf':s.f==='n'?'nf':'d',fixed:s.f!=='d',area:s.k==='emp'?'finanzas':s.k==='est'?'lectura':/foto/.test(s.k)?'arte':'hoy',h:s.k}));
+  const out=[],P=day.plan||{};const fx=(s,g)=>({...s,id:s.toggle?0:ideal(s),grp:g,fixed:true,area:'hoy',h:s.k});
+  STEPS.filter(s=>s.f==='m').forEach(s=>out.push(fx(s,'mf')));
+  const sal=(P.m||[]).includes('salida');
+  const blk=(g,len,label)=>{if(!len)return;const sel=(P[g]||[]).filter(k=>ACTS[g].some(a=>a[0]===k));if(!sel.length){out.push({k:'pick_'+g,n:label,s:label,grp:g,pick:true,id:len,fixed:false,area:g==='m'?'arte':'finanzas'});return}
+    sel.forEach(k=>{const a=ACTS[g].find(x=>x[0]===k);out.push({k,n:a[1].replace(' · todo el día',''),s:({ref:'Referentes',leer:'Leer',conv:'Convocatorias',apl:'Aplicar',edit:'Editar',salida:'Tomar fotos',emp:'Buscar trabajo',arq:'Arquitectura',neg:'Negocio digital'})[k]||a[1],grp:g,id:k==='salida'?blockLen('m')+blockLen('t'):Math.round(len/sel.length),min:45,fixed:false,area:a[3],h:a[2]})})};
+  blk('m',blockLen('m'),'Mañana creativa');if(!sal)blk('t',blockLen('t'),'Tarde de trabajo');
+  const cie=STEPS.find(s=>s.k==='cie');out.push(fx(cie,'nf'));STEPS.filter(s=>s.f==='n').forEach(s=>out.push(fx(s,'nf')));return out}
+const activeSteps=()=>stepsFor(today());
 const FOCO=['Descanso y revisión semanal','Planear: convocatorias y metas','Producción: salir a tomar fotos','Edición: escanear y seleccionar','Producción: salir a tomar fotos','Investigación: referentes','Salida larga o exposiciones'];
 const CONV_ST=['Por revisar','Preparando','Enviada','Seleccionada','No seleccionada'];
 const CONV_C={'Por revisar':'var(--mist)','Preparando':'var(--red)','Enviada':'var(--blue)','Seleccionada':'var(--ochre)','No seleccionada':'var(--stone)'};
@@ -431,15 +451,16 @@ const gastosMes=ym=>S.gastos.filter(g=>(g.date||'').slice(0,7)===ym).sort((a,b)=
 const areaOf=cat=>CAT_FOTO.includes(cat)?'foto':'personal';
 const catColor=cat=>{let i=CAT_FOTO.indexOf(cat);if(i>=0)return FOTO_C[i%FOTO_C.length];i=CAT_PER.indexOf(cat);return PER_C[(i<0?0:i)%PER_C.length]};
 function monthPct(ym){const [y,m]=ym.split('-').map(Number);const n=new Date(y,m,0).getDate();const t=today();const ds=[...Array(n)].map((_,i)=>ym+'-'+pad(i+1)).filter(x=>x<=t);const r={};HABITS.forEach(h=>{r[h.k]=ds.length?Math.round(ds.filter(x=>dayOf(x)[h.k]).length/ds.length*100):0});return r}
-function dayProgress(date){const day=dayOf(date),mins=day.mins||{};let got=0,tot=0;activeSteps().forEach(s=>{const id=s.toggle?30:ideal(s);if(!id)return;tot+=id;got+=s.toggle?(day[s.k]?30:0):Math.min(Number(mins[s.k])||0,id)});return tot?Math.round(got/tot*100):0}
-const stepPct=(s,day)=>s.toggle?(day[s.k]?100:0):(ideal(s)?Math.min(100,Math.round((Number((day.mins||{})[s.k])||0)/ideal(s)*100)):0);
+function dayProgress(date){const day=dayOf(date),mins=day.mins||{};let got=0,tot=0;stepsFor(date).forEach(s=>{const id=s.toggle?30:s.id;if(!id)return;tot+=id;got+=s.toggle?(day[s.k]?30:0):Math.min(Number(mins[s.k])||0,id)});return tot?Math.round(got/tot*100):0}
+const stepPct=(s,day)=>s.pick?0:s.toggle?(day[s.k]?100:0):(s.id?Math.min(100,Math.round((Number((day.mins||{})[s.k])||0)/s.id*100)):0);
 
 /* ---------- escrituras ---------- */
 function setLog(m,doc){S.logs[m]=doc;if(S.db)write(()=>S.db.doc('log/'+m).set(doc))}
 function editDay(date,fn){const m=date.slice(0,7);const doc=structuredClone(S.logs[m]||{days:{}});doc.days=doc.days||{};const day=doc.days[date]||{};fn(day);doc.days[date]=day;setLog(m,doc);render(true)}
 function toggle(date,k){editDay(date,day=>{const v=day[k];if(v==='full')day[k]='min';else if(v==='min')delete day[k];else day[k]='full'})}
-function setMins(date,k,v){const s=STEPS.find(x=>x.k===k);editDay(date,day=>{day.mins=day.mins||{};v=Math.max(0,Math.round(v));if(v)day.mins[k]=v;else delete day.mins[k];
-  if(HABITS.some(h=>h.k===k)){if(v>=ideal(s)&&ideal(s))day[k]='full';else if(s.min&&v>=s.min)day[k]='min';else delete day[k]}})}
+function setMins(date,k,v){const ST=stepsFor(date);const s=ST.find(x=>x.k===k);if(!s||s.pick)return;editDay(date,day=>{day.mins=day.mins||{};v=Math.max(0,Math.round(v));if(v)day.mins[k]=v;else delete day.mins[k];
+  const h=s.h;if(!h||!HABITS.some(x=>x.k===h))return;const grp=ST.filter(x=>x.h===h&&!x.pick&&!x.toggle);const got=grp.reduce((t,x)=>t+(Number(day.mins[x.k])||0),0),tot=grp.reduce((t,x)=>t+x.id,0),mn=s.fixed?(s.min||0):45;
+  if(tot&&got>=tot)day[h]='full';else if(mn&&got>=mn)day[h]='min';else delete day[h]})}
 let noteTimer=null;
 function saveNote(date,text){const m=date.slice(0,7);const doc=structuredClone(S.logs[m]||{days:{}});doc.days=doc.days||{};const day=doc.days[date]||{};if(text)day.nota=text;else delete day.nota;doc.days[date]=day;S.logs[m]=doc;
   clearTimeout(noteTimer);noteTimer=setTimeout(()=>{if(S.db)write(()=>S.db.doc('log/'+m).set(doc))},800)}
@@ -538,9 +559,10 @@ function perf(area,date){const day=dayOf(date),mins=day.mins||{};const st=k=>STE
   const rat=k=>{const s=st(k),id=s?ideal(s):0;return Math.max(mk(day[k]),id?Math.min(1,(Number(mins[k])||0)/id):0)};
   if(area==='hoy')return dayProgress(date)/100;
   if(area==='habitos')return HABITS.reduce((t,h)=>t+mk(day[h.k]),0)/HABITS.length;
-  if(area==='arte'){const fi=ideal(st('foto'))+ideal(st('foto2'));const m=(Number(mins.foto)||0)+(Number(mins.foto2)||0);return Math.min(1,Math.max(mk(day.foto),fi?m/fi:0)+0.25*(A.a[date]||0))}
-  if(area==='lectura')return Math.min(1,(rat('lit')+rat('est'))/2+(A.b[date]?0.5:0));
-  if(area==='finanzas')return Math.min(1,rat('emp')*0.7+(A.g[date]?0.3:0));
+  const gr=ar=>{const L=stepsFor(date).filter(x=>x.area===ar&&!x.pick&&!x.toggle);const tot=L.reduce((t,x)=>t+x.id,0);return tot?Math.min(1,L.reduce((t,x)=>t+(Number(mins[x.k])||0),0)/tot):0};
+  if(area==='arte')return Math.min(1,Math.max(mk(day.foto),gr('arte'))+0.25*(A.a[date]||0));
+  if(area==='lectura')return Math.min(1,(rat('lit')+Math.max(mk(day.est),gr('lectura')))/2+(A.b[date]?0.5:0));
+  if(area==='finanzas')return Math.min(1,Math.max(mk(day.emp),gr('finanzas'))*0.7+(A.g[date]?0.3:0));
   return 0}
 const rangeDays=()=>S.range||90;
 function datesBack(n,off=0){const out=[];const d=parse(today());d.setDate(d.getDate()-off);for(let i=0;i<n;i++){out.push(iso(d));d.setDate(d.getDate()-1)}return out}
@@ -668,39 +690,55 @@ function applyJump(){const j=S.jump;if(!j)return;S.jump=null;const v=view();if(v
   else if(v==='hoy'){if(sub==='tareas')scr(app.querySelectorAll('h3')[0]);else if(sub==='registro')scr(document.getElementById('nota'))}}
 
 function vHoy(){
-  const ST=activeSteps();
-  const t=today(),d=parse(t),day=dayOf(t);
-  const cols=innerWidth<640?2:3,W=cols===3?900:600,gap=W/cols,r=cols===3?74:82,rowH=cols===3?300:310,top=140,m=24;
-  const pts=ST.map((s,i)=>{const row=Math.floor(i/cols);let c=i%cols;if(row%2)c=cols-1-c;return {x:gap/2+c*gap,y:top+row*rowH}});
-  const rows=Math.ceil(ST.length/cols),H=top+(rows-1)*rowH+r+96;
-  const v=[[m,0],[m,top]];for(let row=0;row<rows;row++){const y=top+row*rowH;const last=row===rows-1;if(last){v.push([pts[ST.length-1].x,y]);break}const ex=row%2?m:W-m;v.push([ex,y]);v.push([ex,y+rowH])}
-  const R=46;let dd=`M ${v[0][0]} ${v[0][1]}`;for(let i=1;i<v.length;i++){const [x,y]=v[i];if(i<v.length-1){const [px,py]=v[i-1],[nx,ny]=v[i+1];const l1=Math.hypot(x-px,y-py),l2=Math.hypot(nx-x,ny-y);const k1=Math.min(R,l1/2)/l1,k2=Math.min(R,l2/2)/l2;dd+=` L ${x-(x-px)*k1} ${y-(y-py)*k1} Q ${x} ${y} ${x+(nx-x)*k2} ${y+(ny-y)*k2}`}else dd+=` L ${x} ${y}`}
-  const cur=ST.findIndex(s=>stepPct(s,day)<100);
-  const fs=cols===3?22:25;
-  const svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Recorrido del día"><path d="${dd}" fill="none" stroke="var(--blue)" stroke-width="5"/>
-  ${ST.map((s,i)=>{const p=pts[i],pc=stepPct(s,day),hgt=2*r*pc/100;const mins=Number((day.mins||{})[s.k])||0;
-    return `<clipPath id="cp${i}"><circle cx="${p.x}" cy="${p.y}" r="${r}"/></clipPath><circle cx="${p.x}" cy="${p.y}" r="${r}" fill="var(--paper)" stroke="${s.f==='d'?'var(--blue)':'var(--ink)'}" stroke-width="${s.f==='d'?2:3}"${s.f==='d'?' stroke-dasharray="7 6"':''}/>${i===0||ST[i-1].f!==s.f?`<text x="${p.x}" y="${p.y-r-16}" text-anchor="middle" font-size="${fs-6}" font-weight="700" letter-spacing="2" fill="${s.f==='d'?'var(--blue2)':'var(--red)'}">${esc(FRANJAS[s.f].toUpperCase())}</text>`:''}<rect x="${p.x-r}" y="${p.y+r-hgt}" width="${2*r}" height="${hgt}" fill="var(--red)" clip-path="url(#cp${i})"/>
-    <text x="${p.x}" y="${p.y+8}" text-anchor="middle" font-size="${fs+6}" font-weight="800" fill="${pc>=55?'#fff':'var(--ink)'}">${pc}%</text>
-    <text x="${p.x}" y="${p.y+r+34}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="var(--ink)">${pad(i+1)} ${esc(s.s)}</text>
-    <text x="${p.x}" y="${p.y+r+62}" text-anchor="middle" font-size="${fs-3}" fill="var(--soft)">${s.toggle?(day[s.k]?'Hecho':'Pendiente'):`${esc(hm(mins))} de ${esc(hm(ideal(s)))}`}</text>`}).join('')}
-  ${cur>=0?`<g transform="translate(${pts[cur].x-r-30} ${pts[cur].y-61})" color="var(--ink)">${FIG(60).replace('<svg ','<svg x="0" y="0" ')}</g>`:''}
-  </svg>`;
-  const hits=ST.map((s,i)=>{const p=pts[i];return `<button class="hit" data-act="step" data-k="${s.k}" aria-pressed="${S.step===s.k}" aria-label="${esc(s.n)}: ${stepPct(s,day)}%" style="left:${(p.x-r)/W*100}%;top:${(p.y-r)/H*100}%;width:${2*r/W*100}%;height:${2*r/H*100}%"></button>`}).join('');
-  const ss=ST.find(s=>s.k===(S.step||(cur>=0?ST[cur].k:ST[0].k)));const si=ST.indexOf(ss);const sm=Number((day.mins||{})[ss.k])||0;
-  const panel=ss.toggle?`<div class="steppanel"><div class="muted" style="font-weight:700">${pad(si+1)}</div><div style="font-size:22px;font-weight:700">${esc(ss.n)}</div><div class="btns"><button class="btn ${day[ss.k]?'ghost':'red'}" data-act="togstep">${day[ss.k]?'Desmarcar':'Lo logré'}</button></div></div>`
-   :`<div class="steppanel"><div class="muted" style="font-weight:700">${pad(si+1)}</div><div style="font-size:22px;font-weight:700">${esc(ss.n)}</div><div style="font-size:15px;margin-top:4px">${esc(hm(sm))} de ${esc(hm(ideal(ss)))} ideales${ss.min?` · mínimo ${esc(hm(ss.min))}`:''}</div><div class="meter"><i style="width:${stepPct(ss,day)}%"></i></div>
+  const t=today(),day=dayOf(t);const ST=stepsFor(t);const P=day.plan||{};const sal=(P.m||[]).includes('salida');
+  const bm=blockLen('m'),bt=blockLen('t');const small=innerWidth<640;const W=small?600:900,m=small?16:24,mx=small?78:24;
+  // filas: franjas fijas y libres, en zigzag
+  const GL=ST.some(s=>s.grp==='d')?[['mf','Mañana · fija',1],['d','Día · flexible',0],['nf','Noche · fija',1]]:[['mf','Mañana · fija',1],['m',sal?'Día creativo · salida a tomar fotos':'Mañana creativa · libre',0],['t','Tarde de trabajo e ingresos · libre',0],['nf','Noche · fija',1]];
+  const per=small?3:6;const rows=[];GL.forEach(([g,l,fx])=>{const L=ST.map((s,i)=>({s,i})).filter(o=>o.s.grp===g);for(let q=0;q<L.length;q+=per)rows.push({g,l:q?'':l,fx,steps:L.slice(q,q+per)})});
+  const rOf=s=>s.fixed?Math.min(small?52:54,(W-2*m)/(rows.find(r=>r.steps.some(o=>o.s===s)).steps.length)*0.3):Math.min(small?96:112,(small?40:46)+Math.sqrt(s.id||0)*(small?3.4:3.9));
+  let y=0;const pts=[];const heads=[];
+  rows.forEach((row,ri)=>{const R=Math.max(...row.steps.map(o=>rOf(o.s)));if(row.l){y+=46;heads.push({y,l:row.l,fx:row.fx});y+=R+40}else y+=R+20;const n=row.steps.length;
+    row.steps.forEach((o,j)=>{const jj=ri%2?n-1-j:j;const x=n===1?W/2:mx+R+(W-2*mx-2*R)*jj/(n-1);pts[o.i]={x,y,r:rOf(o.s),row:ri}});y+=R+74});
+  const H=y;const cur=ST.findIndex(s=>!s.pick&&stepPct(s,day)<100);
+  // recorrido: sólido entre pasos fijos, punteado hacia los libres
+  let route='';for(let i=0;i<ST.length-1;i++){const a=pts[i],b=pts[i+1],A=ST[i],B=ST[i+1];const fx=A.fixed&&B.fixed;
+    const dy=(b.y-a.y)*0.55;const d=a.row===b.row?`M ${a.x} ${a.y} L ${b.x} ${b.y}`:`M ${a.x} ${a.y+a.r} C ${a.x} ${a.y+a.r+dy}, ${b.x} ${b.y-b.r-dy}, ${b.x} ${b.y-b.r}`;
+    route+=`<path d="${d}" fill="none" stroke="${fx?'var(--ink)':ACOL[(B.fixed?A:B).area].m}" stroke-width="${fx?2.6:2.2}"${fx?'':' stroke-dasharray="7 7"'} stroke-linecap="round"/>`}
+  const fs=small?24:19;
+  const circ=(s,i)=>{const p=pts[i],A=ACOL[s.area],pc=s.pick?0:stepPct(s,day),r=p.r;const k=Math.sqrt(pc/100);const n=s.fixed?3:6;const mins=Number((day.mins||{})[s.k])||0;
+    let g=`<radialGradient id="hg${i}"><stop offset="0" stop-color="${A.d}"/><stop offset=".55" stop-color="${A.m}"/><stop offset="1" stop-color="${A.l}"/></radialGradient>
+    <circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${A.l}" fill-opacity="${s.fixed?0.18:0.28}"/>${pc?`<circle cx="${p.x}" cy="${p.y}" r="${(r*k).toFixed(1)}" fill="url(#hg${i})" fill-opacity=".9"/>`:''}`;
+    for(let q=1;q<=n;q++){const rr=r*(1-q/(n+1)*0.82);const inside=rr<r*k;g+=`<circle cx="${p.x}" cy="${p.y}" r="${rr.toFixed(1)}" fill="none" stroke="${inside?'var(--bg)':A.m}" stroke-opacity="${inside?0.55:0.45}" stroke-width="${inside?1:0.9}"/>`}
+    g+=`<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="none" stroke="${s.fixed?'var(--ink)':A.d}" stroke-width="${s.fixed?3:2.2}"${s.fixed?'':' stroke-dasharray="6 6"'}/>`;
+    g+=`<circle cx="${p.x}" cy="${p.y}" r="${(r*0.34).toFixed(1)}" fill="var(--bg)"/>`;
+    g+=s.pick?`<text x="${p.x}" y="${p.y+9}" text-anchor="middle" font-size="${fs+8}" font-weight="800" fill="${A.d}">+</text>`:`<text x="${p.x}" y="${p.y+6}" text-anchor="middle" font-size="${Math.max(fs-2,Math.min(fs+6,r*0.3))}" font-weight="800" fill="${A.d}">${pc}%</text>`;
+    g+=`<text x="${p.x}" y="${p.y+r+28}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="var(--ink)">${s.pick?esc(s.n):pad(i+1)+' '+esc(s.s)}</text>
+    <text x="${p.x}" y="${p.y+r+52}" text-anchor="middle" font-size="${fs-3}" fill="var(--soft)">${s.pick?'Elige qué harás · '+esc(hm(s.id)):s.toggle?(day[s.k]?'Hecho':'Pendiente'):`${esc(hm(mins))} de ${esc(hm(s.id))}`}</text>`;return g};
+  const head=h=>`<line x1="${m}" x2="${W-m}" y1="${h.y-8}" y2="${h.y-8}" stroke="var(--ink)" stroke-width="${h.fx?2:1}"${h.fx?'':' stroke-dasharray="4 6"'} opacity="${h.fx?0.9:0.5}"/><text x="${m}" y="${h.y+14}" font-size="${fs-5}" font-weight="800" letter-spacing="2.5" fill="var(--ink)">${esc(h.l.toUpperCase())}</text>${small?'':`<text x="${W-m}" y="${h.y+14}" text-anchor="end" font-size="${fs-5}" font-weight="700" letter-spacing="2" fill="var(--soft)">${h.fx?'FIJO':'TÚ ELIGES'}</text>`}`;
+  const svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Recorrido del día">${heads.map(head).join('')}${route}${ST.map(circ).join('')}
+  ${cur>=0?`<g transform="translate(${pts[cur].x-pts[cur].r-28} ${pts[cur].y-56})" color="var(--ink)">${FIG(56).replace('<svg ','<svg x="0" y="0" ')}</g>`:''}</svg>`;
+  const hits=ST.map((s,i)=>{const p=pts[i];return `<button class="hit" data-act="step" data-k="${s.k}" aria-pressed="${S.step===s.k}" aria-label="${esc(s.n)}" style="left:${(p.x-p.r)/W*100}%;top:${(p.y-p.r)/H*100}%;width:${2*p.r/W*100}%;height:${2*p.r/H*100}%"></button>`}).join('');
+  // panel: elegir el día + detalle del paso
+  const chip=(g,a)=>{const on=(P[g]||[]).includes(a[0]);return `<button data-act="plan" data-g="${g}" data-k="${a[0]}" aria-pressed="${on}" style="--c:${ACOL[a[3]].m};--cd:${ACOL[a[3]].d}">${esc(a[1])}</button>`};
+  const plan=`<div class="dayplan"><p class="kicker" style="margin:0 0 10px">Tu día</p>
+   <div class="pg"><p><b style="color:${ACOL.arte.d}">Mañana creativa</b> · ${esc(hm(bm))} · elige 1 o 2</p><div class="pchips">${ACTS.m.map(a=>chip('m',a)).join('')}</div></div>
+   <div class="pg"><p><b style="color:${ACOL.finanzas.d}">Tarde de trabajo e ingresos</b> · ${esc(hm(bt))} · elige 1 o 2</p>${sal?`<p class="muted" style="font-size:14px;margin:4px 0 0">Hoy sales a tomar fotos: la tarde también es creativa.</p>`:`<div class="pchips">${ACTS.t.map(a=>chip('t',a)).join('')}</div>`}</div>
+   <p class="muted" style="font-size:13px;margin:8px 0 0">Una actividad ocupa todo el bloque; dos, la mitad cada una.</p></div>`;
+  const ss=ST.find(s=>s.k===(S.step||(cur>=0?ST[cur].k:ST[0].k)))||ST[0];const si=ST.indexOf(ss);const sm=Number((day.mins||{})[ss.k])||0;const SA=ACOL[ss.area];
+  const pst=`style="--red:${SA.d};--bluesoft:color-mix(in srgb,${SA.l} 40%,transparent)"`;
+  const panel=ss.pick?`<div class="steppanel" ${pst}><div style="font-size:20px;font-weight:700">${esc(ss.n)}</div><p class="muted" style="margin:4px 0 0">Elige arriba qué harás en este bloque.</p></div>`
+   :ss.toggle?`<div class="steppanel" ${pst}><div class="muted" style="font-weight:700">${pad(si+1)} · ${ss.fixed?'fijo':'libre'}</div><div style="font-size:22px;font-weight:700">${esc(ss.n)}</div><div class="btns"><button class="btn ${day[ss.k]?'ghost':'red'}" data-act="togstep">${day[ss.k]?'Desmarcar':'Lo logré'}</button></div></div>`
+   :`<div class="steppanel" ${pst}><div class="muted" style="font-weight:700">${pad(si+1)} · ${ss.fixed?'fijo':'libre'}</div><div style="font-size:22px;font-weight:700">${esc(ss.n)}</div><div style="font-size:15px;margin-top:4px">${esc(hm(sm))} de ${esc(hm(ss.id))}${ss.min?` · mínimo ${esc(hm(ss.min))}`:''}</div><div class="meter"><i style="width:${stepPct(ss,day)}%;background:${SA.m}"></i></div>
    <div class="btns"><button class="btn ghost small" data-act="mins" data-v="-15">−15 min</button><button class="btn ghost small" data-act="mins" data-v="15">+15 min</button><button class="btn ghost small" data-act="mins" data-v="30">+30 min</button><button class="btn ghost small" data-act="mins" data-v="60">+1 h</button><button class="btn red small" data-act="minsfull">Completo</button>${sm?'<button class="link" data-act="minszero">Reiniciar</button>':''}</div></div>`;
   const tasks=items('tarea').filter(x=>!x.done&&(!x.date||x.date<=t)).sort((a,b)=>(a.date||'9')<(b.date||'9')?-1:1);
-  return `<p class="kicker">${esc(cap(DIAS[d.getDay()]))} ${d.getDate()} de ${esc(MESES[d.getMonth()])} · foco: ${esc(FOCO[d.getDay()])}</p>
-  <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-top:8px"><div class="big red">${dayProgress(t)}%</div><p class="lead" style="margin:0 0 8px">del día ideal.<br>Toca un círculo y suma el tiempo que le dedicaste.</p></div>
-  <div class="grid2" style="margin-top:10px;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)"><div class="path">${svg}${hits}</div><div style="position:sticky;top:90px;align-self:start">${panel}</div></div>
+  return `<div class="big red" style="margin-top:14px;color:${ACOL.hoy.d}">${dayProgress(t)}%</div>
+  ${small?plan:''}<div class="grid2" style="margin-top:6px;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)"><div class="path">${svg}${hits}</div><div style="position:sticky;top:90px;align-self:start">${small?'':plan}${panel}</div></div>
   <div class="grid2">
   <section>${sec(1,'Tareas para hoy')}<form class="form" data-form="tarea" style="grid-template-columns:minmax(0,1fr) auto;align-items:end"><div><label for="qt">Nueva tarea</label><input id="qt" name="title" required placeholder="Ej: escanear rollo 12"></div><button class="btn">Agregar</button></form>
   ${tasks.length?tasks.map(taskCard).join(''):'<div class="empty">No hay tareas pendientes para hoy.</div>'}</section>
   <section>${sec(2,'Registro del día')}<textarea id="nota" data-date="${t}" aria-label="Registro del día" placeholder="Qué hice y qué sigue mañana. Dos líneas bastan.">${esc(day.nota||'')}</textarea></section></div>
-  <div class="legend"><span><i style="background:var(--ink)"></i>Franjas fijas: mañana y noche, con o sin empleo</span><span><i style="background:repeating-linear-gradient(90deg,var(--blue) 0 6px,transparent 6px 10px)"></i>Bloques flexibles del día</span></div>
-  <details><summary>Ajustar los bloques flexibles del día</summary><p class="muted" style="font-size:14px">Las franjas de mañana y noche no se tocan. Cuando consigas trabajo, cambia aquí cuánto es el 100% de cada bloque del día; si pones 0, el bloque desaparece del recorrido. Se guarda al salir del campo.</p>
-  <div class="row">${ST.filter(s=>!s.toggle&&s.f==='d').map(s=>`<div><label>${esc(s.n)} (min)</label><input type="number" min="0" step="5" data-act="ideal" data-k="${s.k}" value="${ideal(s)}"></div>`).join('')}</div></details>`;
+  <details><summary>Duración de los bloques libres</summary><p class="muted" style="font-size:14px">Las franjas fijas no se tocan. Si un día cambia tu rutina (por ejemplo, cuando consigas trabajo), ajusta aquí cuánto dura cada bloque libre. Se guarda al salir del campo.</p>
+  <div class="row"><div><label>Mañana creativa (min)</label><input type="number" min="0" step="15" data-act="blen" data-g="m" value="${bm}"></div><div><label>Tarde de trabajo (min)</label><input type="number" min="0" step="15" data-act="blen" data-g="t" value="${bt}"></div></div></details>`;
 }
 
 function vHabitos(){
@@ -1042,8 +1080,9 @@ document.addEventListener('click',e=>{
   else if(a==='rjump'){e.preventDefault();const el=[...app.querySelectorAll('.rgroup')].find(x=>x.dataset.g===b.dataset.g);if(el)el.scrollIntoView({behavior:'smooth'})}
   else if(a==='rtag'){const r=byId(id);if(r){const f=b.dataset.f,v=b.dataset.v;const cur=[...(r[f]||[])];const i=cur.indexOf(v);if(i>=0)cur.splice(i,1);else cur.push(v);patch(id,{[f]:cur});render(true)}}
   else if(a==='step'){S.step=b.dataset.k;render(true);if(innerWidth<860){const el=app.querySelector('.steppanel');if(el)el.scrollIntoView({block:'center'})}}
-  else if(a==='mins'||a==='minsfull'||a==='minszero'){const day=dayOf(t);const AS=activeSteps();const cur=AS.findIndex(s=>stepPct(s,day)<100);const k=S.step||(cur>=0?AS[cur].k:AS[0].k);const s=STEPS.find(x=>x.k===k);const m=Number((day.mins||{})[k])||0;
-    setMins(t,k,a==='minsfull'?Math.max(m,ideal(s)):a==='minszero'?0:m+Number(b.dataset.v))}
+  else if(a==='mins'||a==='minsfull'||a==='minszero'){const day=dayOf(t);const AS=activeSteps();const cur=AS.findIndex(s=>!s.pick&&stepPct(s,day)<100);const k=S.step||(cur>=0?AS[cur].k:AS[0].k);const s=AS.find(x=>x.k===k);if(!s||s.pick)return;const m=Number((day.mins||{})[k])||0;
+    setMins(t,k,a==='minsfull'?Math.max(m,s.id):a==='minszero'?0:m+Number(b.dataset.v))}
+  else if(a==='plan'){const g=b.dataset.g,k=b.dataset.k;editDay(t,day=>{const P=day.plan||{m:[],t:[]};let L=[...(P[g]||[])];if(L.includes(k))L=L.filter(x=>x!==k);else if(k==='salida')L=['salida'];else{L=L.filter(x=>x!=='salida');L.push(k);if(L.length>2)L.shift()}P[g]=L;day.plan=P});S.step=null}
   else if(a==='togstep'){editDay(t,day=>{if(day.cel)delete day.cel;else day.cel='full'})}
   else if(a==='tab'){S.tab=b.dataset.tab;S.askDel=null;S.serie=null;render(true);window.scrollTo(0,0)}
   else if(a==='home'){S.tab=null;S.serie=null;render(true);window.scrollTo(0,0)}
@@ -1082,6 +1121,7 @@ document.addEventListener('change',e=>{
   else if(a==='pago'){const m=fmes(S.fmonth);saveMes(S.fmonth,{pagados:{...(m.pagados||{}),[el.dataset.id]:el.checked}})}
   else if(a==='ahorro')saveMes(S.fmonth,{ahorroHecho:el.checked});
   else if(a==='ingreso')saveMes(S.fmonth,{ingreso:toNum(el.value)});
+  else if(a==='blen'){const c=structuredClone(S.conf||{});c['b'+el.dataset.g]=Math.max(0,Number(el.value)||0);saveConf(c)}
   else if(a==='ideal'){const c=structuredClone(S.conf||{});c.ideal={...(c.ideal||{}),[el.dataset.k]:Math.max(0,Number(el.value)||0)};saveConf(c)}
   else if(a==='fx'){const c=structuredClone(cfg());const f=(c.fijos||[]).find(x=>x.id===el.dataset.id);if(f){f[el.dataset.f]=el.dataset.f==='amount'?toNum(el.value):el.value.trim();saveCfg(c)}}
   else if(a==='plan'&&S.plan){const p=structuredClone(S.plan);const x=p.grupos[+el.dataset.g].items[+el.dataset.x];x[el.dataset.f]=el.dataset.f==='n'?el.value.trim():toNum(el.value);savePlan(p)}
