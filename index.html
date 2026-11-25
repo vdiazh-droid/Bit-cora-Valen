@@ -159,6 +159,11 @@ input,select,textarea{background:transparent;border:0;border-bottom:1.5px solid 
 textarea{border:0;border-left:3px solid var(--bluetop);padding:8px 14px}
 .empty{border:0;border-top:1px dashed var(--line);padding:12px 0}
 .chk{border-radius:50%}
+/* hábitos: radar */
+.radar{display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,1fr);gap:20px 36px;align-items:center;margin:18px 0 6px}
+.rsvg svg{display:block;width:100%;height:auto}
+.rkey p{margin:0 0 10px;font-size:15px}.rkey i{display:inline-block;width:26px;height:12px;margin-right:10px;vertical-align:middle}
+@media(max-width:760px){.radar{grid-template-columns:minmax(0,1fr)}}
 /* paleta: un color por área, todo sobre el crema */
 :root{--paper:transparent;--bluesoft:color-mix(in srgb,var(--bluetop) 32%,transparent)}
 :root[data-area]:not([data-area='']){--mist:color-mix(in srgb,var(--bluetop) 70%,var(--blue));--stone:color-mix(in srgb,var(--blue) 55%,var(--bg))}
@@ -395,7 +400,7 @@ const blockLen=g=>{const v=(S.conf||{})['b'+g];return v===undefined?180:Number(v
 function stepsFor(date){const day=dayOf(date),mins=day.mins||{};
   if(!day.plan&&['foto','foto2','est','emp'].some(k=>mins[k]))return STEPS.filter(s=>s.toggle||ideal(s)>0).map(s=>({...s,id:s.toggle?0:ideal(s),grp:s.f==='m'?'mf':s.f==='n'?'nf':'d',fixed:s.f!=='d',area:s.k==='emp'?'finanzas':s.k==='est'?'lectura':/foto/.test(s.k)?'arte':'hoy',h:s.k}));
   const out=[],P=day.plan||{};const fx=(s,g)=>({...s,id:s.toggle?0:ideal(s),grp:g,fixed:true,area:'hoy',h:s.k});
-  STEPS.filter(s=>s.f==='m').forEach(s=>out.push(fx(s,'mf')));
+  STEPS.filter(s=>s.f==='m'&&!['estir','cel'].includes(s.k)).forEach(s=>out.push(fx(s,'mf')));
   const sal=(P.m||[]).includes('salida');
   const blk=(g,len,label)=>{if(!len)return;const sel=(P[g]||[]).filter(k=>ACTS[g].some(a=>a[0]===k));if(!sel.length){out.push({k:'pick_'+g,n:label,s:label,grp:g,pick:true,id:len,fixed:false,area:g==='m'?'arte':'finanzas'});return}
     sel.forEach(k=>{const a=ACTS[g].find(x=>x[0]===k);out.push({k,n:a[1].replace(' · todo el día',''),s:({ref:'Referentes',leer:'Leer',conv:'Convocatorias',apl:'Aplicar',edit:'Editar',salida:'Tomar fotos',emp:'Buscar trabajo',arq:'Arquitectura',neg:'Negocio digital'})[k]||a[1],grp:g,id:k==='salida'?blockLen('m')+blockLen('t'):Math.round(len/sel.length),min:45,fixed:false,area:a[3],h:a[2]})})};
@@ -799,19 +804,46 @@ function vHoy(){
   <div class="row"><div><label>Mañana creativa (min)</label><input type="number" min="0" step="15" data-act="blen" data-g="m" value="${bm}"></div><div><label>Tarde de trabajo (min)</label><input type="number" min="0" step="15" data-act="blen" data-g="t" value="${bt}"></div></div></details>`;
 }
 
+/* Hábitos: radar con anillos de cota */
+const habMeta=k=>{const v=((S.conf||{}).meta||{})[k];return v===undefined?80:Math.max(0,Math.min(100,Number(v)||0))};
+function smoothClosed(P){const n=P.length;let d=`M ${P[0][0].toFixed(1)} ${P[0][1].toFixed(1)}`;
+  for(let i=0;i<n;i++){const p0=P[(i-1+n)%n],p1=P[i],p2=P[(i+1)%n],p3=P[(i+2)%n];const t=0.18;
+    d+=` C ${(p1[0]+(p2[0]-p0[0])*t).toFixed(1)} ${(p1[1]+(p2[1]-p0[1])*t).toFixed(1)}, ${(p2[0]-(p3[0]-p1[0])*t).toFixed(1)} ${(p2[1]-(p3[1]-p1[1])*t).toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`}
+  return d+' Z'}
+function radarSvg(cur,prev){const A=ACOL.habitos,W=640,C=W/2,R=220,N=HABITS.length;const ang=i=>-Math.PI/2+i*2*Math.PI/N;
+  const pt=(i,v)=>[C+Math.cos(ang(i))*R*Math.min(100,v)/100,C+Math.sin(ang(i))*R*Math.min(100,v)/100];
+  let g=`<radialGradient id="rh"><stop offset="0" stop-color="${A.d}" stop-opacity=".85"/><stop offset=".6" stop-color="${A.m}" stop-opacity=".55"/><stop offset="1" stop-color="${A.l}" stop-opacity=".35"/></radialGradient>`;
+  for(let q=1;q<=20;q++){const rr=R*q/20,major=q%5===0;g+=`<circle cx="${C}" cy="${C}" r="${rr}" fill="none" stroke="${major?A.d:A.m}" stroke-opacity="${major?0.45:0.16}" stroke-width="${major?1.1:0.7}"/>`}
+  [25,50,75,100].forEach(v=>{g+=`<text x="${C+6}" y="${C+R*v/100-5}" font-size="13" fill="${A.d}" opacity=".7">${v}%</text>`});
+  HABITS.forEach((h,i)=>{const [x,y]=pt(i,100);g+=`<line x1="${C}" y1="${C}" x2="${x}" y2="${y}" stroke="var(--ink)" stroke-opacity=".12"/>`});
+  const PP=HABITS.map((h,i)=>pt(i,prev[h.k])),PC=HABITS.map((h,i)=>pt(i,cur[h.k])),PM=HABITS.map((h,i)=>pt(i,habMeta(h.k)));
+  g+=`<path d="${smoothClosed(PP)}" fill="${A.l}" fill-opacity=".35" stroke="${A.l}" stroke-width="1.5"/>`;
+  g+=`<path d="${smoothClosed(PC)}" fill="url(#rh)" stroke="${A.d}" stroke-width="2.2"/>`;
+  g+=`<path d="${smoothClosed(PM)}" fill="none" stroke="var(--ink)" stroke-width="1.4" stroke-dasharray="6 6"/>`;
+  HABITS.forEach((h,i)=>{const [x,y]=PC[i];const ok=cur[h.k]>=habMeta(h.k)&&cur[h.k]>0;g+=`<circle cx="${x}" cy="${y}" r="5.5" fill="${ok?A.d:'var(--bg)'}" stroke="${A.d}" stroke-width="2"/>`;
+    const a=ang(i),lx=C+Math.cos(a)*(R+30),ly=C+Math.sin(a)*(R+30),anc=Math.abs(Math.cos(a))<0.2?'middle':Math.cos(a)>0?'start':'end';
+    g+=`<text x="${lx}" y="${ly}" text-anchor="${anc}" font-size="18" font-weight="700" fill="var(--ink)">${esc(h.n)}</text><text x="${lx}" y="${ly+21}" text-anchor="${anc}" font-size="16" font-weight="700" fill="${A.d}">${cur[h.k]}%<tspan fill="var(--soft)" font-weight="500"> · meta ${habMeta(h.k)}%</tspan></text>`});
+  return `<svg viewBox="-175 -30 ${W+350} ${W+70}" role="img" aria-label="Radar de hábitos: este mes, mes anterior y metas">${g}</svg>`}
 function vHabitos(){
   const [y,m]=S.month.split('-').map(Number);const n=new Date(y,m,0).getDate();const t=today();
   const ds=[...Array(n)].map((_,i)=>S.month+'-'+pad(i+1));const mp=monthPct(S.month);
   const avg=Math.round(HABITS.reduce((s,h)=>s+mp[h.k],0)/HABITS.length);
   const ranked=HABITS.map(h=>[h,mp[h.k],streak(h.k)]);const best=[...ranked].sort((a,b)=>b[1]-a[1]||b[2]-a[2])[0];const hasBest=best[1]>0;
+  const pv=monthPct(shiftM(S.month,-1));const hit=HABITS.filter(h=>mp[h.k]>=habMeta(h.k)&&mp[h.k]>0).length;
   return `<p class="kicker">Hábitos</p>${mnav('mnav',S.month)}
   <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;margin-top:14px"><div class="big">${avg}%</div><p class="lead" style="margin:0 0 8px">de cumplimiento este mes.${hasBest?`<br>Tu hábito más firme: <strong style="color:var(--red)">${esc(best[0].n)}</strong>.`:''}</p></div>
+  <div class="radar"><div class="rsvg">${radarSvg(mp,pv)}</div><div class="rkey"><p class="kicker" style="margin:0 0 10px">Cómo leerlo</p>
+  <p><i style="background:radial-gradient(circle,${ACOL.habitos.d},${ACOL.habitos.l})"></i><b>Este mes</b> · ${hit} de ${HABITS.length} hábitos en su meta</p>
+  <p><i style="background:${ACOL.habitos.l};opacity:.6"></i><b>Mes anterior</b></p>
+  <p><i style="border-top:1.5px dashed var(--ink);height:0;margin-top:8px"></i><b>Tu meta</b> para cada hábito</p>
+  <p class="muted" style="font-size:13px">Un punto lleno es un hábito que ya alcanzó su meta. Las metas se ajustan abajo, en «Metas de cada hábito».</p></div></div>
   <div class="slabs">${ranked.map(([h,p])=>{const isB=hasBest&&h===best[0];return `<div class="srow${isB?' best':''}"><span>${esc(h.n)}</span><div><div class="slab${isB?' red':''}${p?'':' zero'}" style="width:${Math.max(4,p)}%;margin-left:${isB?'6%':'0'}">${isB?`<span class="fig" style="color:var(--ink)">${FIG(34)}</span>`:''}${p}%</div></div></div>`}).join('')}</div>
   <details><summary>${pad(1)} · Constancia día a día</summary><div class="cols">${ds.map(x=>{const c=HABITS.filter(h=>dayOf(x)[h.k]).length;return `<div title="${Number(x.slice(8))}: ${c} hábitos"><i class="${x===t?'today':c?'':'zero'}" style="height:${Math.max(3,c/HABITS.length*100)}%${x>t?';opacity:.25':''}"></i><span>${Number(x.slice(8))}</span></div>`}).join('')}</div></details>
   <details><summary>${pad(2)} · Calendario para marcar</summary><div class="scroll" style="margin-top:10px"><div class="hgrid" style="--n:${n}"><div></div>${ds.map(x=>`<div class="dn${x===t?' today':''}">${Number(x.slice(8))}</div>`).join('')}<div class="dn">%</div>
   ${HABITS.map(h=>`<div class="lab">${esc(h.n)}</div>${ds.map(x=>{const v=dayOf(x)[h.k];return `<button class="cell ${v||''}${x>t?' fut':''}" data-act="tog" data-date="${x}" data-k="${h.k}" aria-label="${esc(h.n)}, ${Number(x.slice(8))}: ${v==='full'?'completo':v==='min'?'mínimo':'sin marcar'}"></button>`}).join('')}<div class="pct">${mp[h.k]}%</div>`).join('')}</div></div>
   <div class="legend"><span><i style="background:var(--blue)"></i>Completo</span><span><i style="background:linear-gradient(135deg,var(--blue) 50%,var(--line) 50%)"></i>Versión mínima</span></div></details>
-  <details><summary>${pad(3)} · Rachas actuales</summary><div class="kpis">${HABITS.map(h=>`<div class="kpi"><div class="v">${streak(h.k)}</div><div class="k">días seguidos · ${esc(h.n)}</div></div>`).join('')}</div></details>`;
+  <details><summary>${pad(3)} · Rachas actuales</summary><div class="kpis">${HABITS.map(h=>`<div class="kpi"><div class="v">${streak(h.k)}</div><div class="k">días seguidos · ${esc(h.n)}</div></div>`).join('')}</div></details>
+  <details><summary>${pad(4)} · Metas de cada hábito</summary><p class="muted" style="font-size:14px">Qué porcentaje de los días del mes esperas cumplir cada hábito. Se guarda al salir del campo.</p><div class="row">${HABITS.map(h=>`<div><label>${esc(h.n)} (%)</label><input type="number" min="0" max="100" step="5" data-act="hmeta" data-k="${h.k}" value="${habMeta(h.k)}"></div>`).join('')}</div></details>`;
 }
 
 function vSerie(s){
@@ -1179,6 +1211,7 @@ document.addEventListener('change',e=>{
   else if(a==='pago'){const m=fmes(S.fmonth);saveMes(S.fmonth,{pagados:{...(m.pagados||{}),[el.dataset.id]:el.checked}})}
   else if(a==='ahorro')saveMes(S.fmonth,{ahorroHecho:el.checked});
   else if(a==='ingreso')saveMes(S.fmonth,{ingreso:toNum(el.value)});
+  else if(a==='hmeta'){const c=structuredClone(S.conf||{});c.meta={...(c.meta||{}),[el.dataset.k]:Math.max(0,Math.min(100,Number(el.value)||0))};saveConf(c)}
   else if(a==='blen'){const c=structuredClone(S.conf||{});c['b'+el.dataset.g]=Math.max(0,Number(el.value)||0);saveConf(c)}
   else if(a==='ideal'){const c=structuredClone(S.conf||{});c.ideal={...(c.ideal||{}),[el.dataset.k]:Math.max(0,Number(el.value)||0)};saveConf(c)}
   else if(a==='fx'){const c=structuredClone(cfg());const f=(c.fijos||[]).find(x=>x.id===el.dataset.id);if(f){f[el.dataset.f]=el.dataset.f==='amount'?toNum(el.value):el.value.trim();saveCfg(c)}}
