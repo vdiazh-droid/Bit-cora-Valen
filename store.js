@@ -267,6 +267,7 @@
   }
   window.Bitacora = {
     use(what) { ready = ready || start(); return ready.then(() => what === 'db' ? db : what === 'assets' ? assets : null); },
-    url, onAssets(f) { assetCb.add(f); }
+    url, onAssets(f) { assetCb.add(f); },
+    async leerEnlace(url) { const { data, error } = await sb.rpc('bitacora_leer_enlace', { url }); if (error) throw error; return data; }
   };
 })();

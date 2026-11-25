@@ -164,6 +164,20 @@ textarea{border:0;border-left:3px solid var(--bluetop);padding:8px 14px}
 .rsvg svg{display:block;width:100%;height:auto}
 .rkey p{margin:0 0 10px;font-size:15px}.rkey i{display:inline-block;width:26px;height:12px;margin-right:10px;vertical-align:middle}
 @media(max-width:760px){.radar{grid-template-columns:minmax(0,1fr)}}
+/* arte: convocatorias */
+.clink{margin:6px 0 18px;border-left:4px solid var(--blue);padding:4px 0 4px 18px}.clrow{display:flex;gap:10px}.clrow input{flex:1}
+.cform{margin:0 0 22px}
+.dpick{display:flex;flex-direction:column;gap:4px;max-height:260px;overflow:auto}
+.dpick button{display:grid;grid-template-columns:130px minmax(0,1fr);gap:10px;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:7px 4px;cursor:pointer;color:var(--ink);font-size:14px}
+.dpick button span{color:var(--soft);font-size:13px}.dpick button[aria-pressed=true]{background:color-mix(in srgb,var(--bluetop) 40%,transparent)}.dpick button[aria-pressed=true] b{color:var(--red)}
+.cfilters{display:grid;gap:10px;margin:14px 0}.cfilters .kicker{margin:0 0 4px;display:block}.cfilters .chips button{min-height:32px;font-size:13px}
+.cfr{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.ctable{width:100%;border-collapse:collapse;font-size:14px;min-width:900px}
+.ctable th{text-align:left;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);font-weight:700;border-bottom:2px solid var(--ink);padding:8px 8px 8px 0}
+.ctable td{border-bottom:1px solid var(--line);padding:10px 8px 10px 0;vertical-align:top}
+.ctable .t{font-weight:700}.ctable .meta{font-size:12.5px;color:var(--soft)}
+.ctable .cd b{display:block;font-size:15px}.ctable .cd span{font-size:12px;color:var(--soft)}.ctable .cd span.hot{color:var(--red);font-weight:800}
+.ctable tr.past{opacity:.5}.ctable select{min-height:34px;padding:4px 2px;font-size:13px}.ctable .acts{white-space:nowrap}
 /* paleta: un color por área, todo sobre el crema */
 :root{--paper:transparent;--bluesoft:color-mix(in srgb,var(--bluetop) 32%,transparent)}
 :root[data-area]:not([data-area='']){--mist:color-mix(in srgb,var(--bluetop) 70%,var(--blue));--stone:color-mix(in srgb,var(--blue) 55%,var(--bg))}
@@ -708,6 +722,74 @@ function applyJump(){const j=S.jump;if(!j)return;S.jump=null;const v=view();if(v
   else if(v==='habitos'){const i=['constancia','calendario','rachas'].indexOf(sub);const dt=app.querySelectorAll('details')[i];if(dt){dt.open=true;scr(dt)}}
   else if(v==='hoy'){if(sub==='tareas')scr(app.querySelectorAll('h3')[0]);else if(sub==='registro')scr(document.getElementById('nota'))}}
 
+/* ---------- convocatorias: lectura de enlaces, tabla y calendario ---------- */
+const CONV_TIPO=['Residencia','Beca o estímulo','Premio o concurso','Exposición u open call','Publicación o fotolibro','Festival','Revisión de portafolio','Otro'];
+const CONV_MOD=['Nacional','Internacional','Virtual'];
+const MES_ES={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,setiembre:9,octubre:10,noviembre:11,diciembre:12};
+const MES_EN={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,jan:1,feb:2,mar:3,apr:4,jun:6,jul:7,aug:8,sep:9,sept:9,oct:10,nov:11,dec:12};
+function parseConv(html,url){const doc=new DOMParser().parseFromString(html||'','text/html');
+  const meta=n=>{const el=doc.querySelector(`meta[property="${n}"],meta[name="${n}"]`);return el?(el.getAttribute('content')||'').trim():''};
+  doc.querySelectorAll('script,style,noscript,svg,nav,footer').forEach(e=>e.remove());
+  const text=(doc.body?doc.body.textContent:'').replace(/\s+/g,' ').trim();let host='';try{host=new URL(url).hostname.replace(/^www\./,'')}catch(_){}
+  const title=(meta('og:title')||(doc.querySelector('h1')||{}).textContent||doc.title||'').replace(/\s+/g,' ').trim().slice(0,160);
+  const desc=(meta('og:description')||meta('description')||'').slice(0,500);
+  const low=text.toLowerCase();const yNow=new Date().getFullYear();const dates=[];const seen=new Set();
+  const add=(y,m,d,i,len)=>{y=Number(y);m=Number(m);d=Number(d);if(y<100)y+=2000;if(!y)y=yNow;if(m<1||m>12||d<1||d>31||y<yNow-1||y>yNow+3)return;const iso=y+'-'+pad(m)+'-'+pad(d);if(seen.has(iso))return;seen.add(iso);
+    const ctx=text.slice(Math.max(0,i-70),i+len+20).trim();dates.push({iso,ctx,key:/cierr|deadline|fecha l[ií]mite|hasta el|plazo|closes?|due|l[ií]mite de|inscripciones/i.test(text.slice(Math.max(0,i-90),i))})};
+  let m;const R1=/\b(\d{1,2})(?:\s*(?:de|del)?\s*)(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?:\s*(?:de|del|,)?\s*(\d{4}))?/gi;
+  while((m=R1.exec(low)))add(m[3]||0,MES_ES[m[2]],m[1],m.index,m[0].length);
+  const R2=/\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sept?|oct|nov|dec)\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/gi;
+  while((m=R2.exec(low)))add(m[3],MES_EN[m[1]],m[2],m.index,m[0].length);
+  const R3=/\b(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/gi;
+  while((m=R3.exec(low)))add(m[3],MES_EN[m[2]],m[1],m.index,m[0].length);
+  const R4=/\b(\d{4})-(\d{2})-(\d{2})\b/g;while((m=R4.exec(low)))add(m[1],m[2],m[3],m.index,m[0].length);
+  const R5=/\b(\d{1,2})[\/.](\d{1,2})[\/.](\d{4}|\d{2})\b/g;while((m=R5.exec(low)))add(m[3],m[2],m[1],m.index,m[0].length);
+  const fut=dates.filter(x=>x.iso>=today());const cierre=(fut.find(x=>x.key)||fut.sort((a,b)=>a.iso<b.iso?1:-1)[0]||{}).iso||'';
+  dates.sort((a,b)=>a.iso<b.iso?-1:1);
+  let costo='';const mc=text.match(/(?:inscripci[oó]n|entry fee|application fee|tarifa|costo|valor)[^.]{0,60}?((?:USD|US\$|COP|EUR|€|\$)\s?[\d.,]+(?:\s?(?:USD|COP|EUR))?)/i)||text.match(/((?:USD|US\$|EUR|€)\s?[\d.,]+)/);
+  if(/(sin costo|gratuit[oa]|no tiene costo|free of charge|no (?:application|entry) fee|no fee)/i.test(low))costo='Gratis';else if(mc)costo=mc[1].trim().replace(/[.,]+$/,'');
+  let premio='';const mp=text.match(/(?:premio|prize|award|est[ií]mulo|beca|grant)[^.]{0,50}?((?:USD|US\$|COP|EUR|€|\$)\s?[\d.,]+(?:\s?(?:USD|COP|EUR|millones))?)/i);if(mp)premio=mp[1].trim().replace(/[.,]+$/,'');
+  const T=[['Revisión de portafolio',/portfolio review|revisi[oó]n de portafolio/],['Residencia',/residenc|residency/],['Publicación o fotolibro',/fotolibro|photobook|publicaci[oó]n|publication|dummy/],['Festival',/festival/],['Beca o estímulo',/\bbeca|est[ií]mulo|grant|fellowship/],['Premio o concurso',/premio|prize|award|sal[oó]n|concurso|competition/],['Exposición u open call',/open call|convocatoria abierta|exposici[oó]n|exhibition|muestra/]];
+  const tipo=(T.find(([,r])=>r.test(low))||['Otro'])[0];
+  const modalidad=/\bonline\b|virtual/.test(low)&&!/presencial/.test(low)?'Virtual':/internacional|international|worldwide|any nationality|todas las nacionalidades/.test(low)?'Internacional':/colombia|nacional|colombian/.test(low)?'Nacional':'';
+  const entidad=meta('og:site_name')||host;
+  return {url,title,entidad,desc,dates:dates.slice(0,14),cierre,costo,premio,tipo,modalidad}}
+function icsDownload(list,name){const esc_=s=>String(s||'').replace(/[\;,]/g,m=>'\\'+m).replace(/\n/g,'\\n');const stamp=new Date().toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
+  const ev=list.filter(c=>c.date).map(c=>{const d=c.date.replace(/-/g,'');const n=parse(c.date);n.setDate(n.getDate()+1);const d2=iso(n).replace(/-/g,'');
+    return ['BEGIN:VEVENT','UID:conv-'+c.id+'@mi-bitacora','DTSTAMP:'+stamp,'DTSTART;VALUE=DATE:'+d,'DTEND;VALUE=DATE:'+d2,'SUMMARY:'+esc_('Cierra: '+c.title),
+      'DESCRIPTION:'+esc_([c.entidad,c.tipo,c.costo?'Costo: '+c.costo:'',c.premio?'Premio: '+c.premio:'',c.url].filter(Boolean).join('\n')),c.url?'URL:'+c.url:'',
+      'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+esc_('En una semana cierra '+c.title),'TRIGGER:-P7D','END:VALARM','BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+esc_('Mañana cierra '+c.title),'TRIGGER:-P1D','END:VALARM','END:VEVENT'].filter(Boolean).join('\r\n')});
+  const body=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Mi bitacora//ES','CALSCALE:GREGORIAN','X-WR-CALNAME:Mi bitácora · Convocatorias',...ev,'END:VCALENDAR'].join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([body],{type:'text/calendar'}));a.download=name+'.ics';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+function convBody(series){const F=S.cf||{};const all=items('conv');
+  let list=all.filter(c=>(!F.tipo||(c.tipo||'Otro')===F.tipo)&&(!F.st||(c.status||'Por revisar')===F.st)&&(F.closed||!c.date||daysTo(c.date)>=0||['Seleccionada'].includes(c.status)));
+  list.sort((a,b)=>{const ao=a.date&&daysTo(a.date)<0,bo=b.date&&daysTo(b.date)<0;return ao!==bo?(ao?1:-1):((a.date||'9')<(b.date||'9')?-1:1)});
+  const sopts=cur=>`<option value="">Ninguno todavía</option>`+series.map(s=>`<option value="${esc(s.id)}"${s.id===cur?' selected':''}>${esc(s.title)}</option>`).join('');
+  const D=S.convDraft;const up=all.filter(c=>c.date&&daysTo(c.date)>=0);
+  const chips=(k,L,cur)=>`<div class="chips">${['',...L].map(v=>`<button data-act="cfilter" data-k="${k}" data-v="${esc(v)}" aria-pressed="${(cur||'')===v}">${v?esc(v):'Todas'}</button>`).join('')}</div>`;
+  const row=c=>{const s=c.serie&&byId(c.serie);const n=c.date?daysTo(c.date):null;return `<tr class="${n!==null&&n<0?'past':''}">
+    <td class="cd">${c.date?`<b>${esc(fmt(c.date))}</b><span class="${n!==null&&n>=0&&n<=7?'hot':''}">${n===null?'':n<0?'cerró':n===0?'hoy':'faltan '+n+' d'}</span>`:'<span>sin fecha</span>'}</td>
+    <td><div class="t">${esc(c.title)}</div><div class="meta">${esc(c.entidad||'')}${c.theme?' · '+esc(c.theme):''}</div></td>
+    <td>${esc(c.tipo||'—')}<div class="meta">${esc(c.modalidad||'')}</div></td><td>${esc(c.costo||'—')}</td><td>${esc(c.premio||'—')}</td>
+    <td><select data-act="ifield" data-f="serie" data-id="${esc(c.id)}" aria-label="Proyecto">${sopts(c.serie||'')}</select></td>
+    <td><select data-act="ifield" data-f="status" data-id="${esc(c.id)}" aria-label="Estado">${opts(CONV_ST,c.status||'Por revisar')}</select></td>
+    <td class="acts">${c.date?`<button class="link" data-act="ics" data-id="${esc(c.id)}" title="Agregar al Calendario">📅</button>`:''}${safeUrl(c.url)?`<a class="ext" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">Abrir</a>`:''}${delBtn(c.id)}</td></tr>`};
+  const form=d=>`<form class="form cform" data-form="conv">${d?`<p class="muted" style="margin:0;font-size:14px">Leí esto de la página. Revísalo y corrige lo que haga falta.</p>`:''}
+    <div class="row"><div><label>Nombre</label><input name="title" required value="${esc(d?d.title:'')}"></div><div><label>Entidad que convoca</label><input name="entidad" value="${esc(d?d.entidad:'')}"></div></div>
+    <div class="row"><div><label>Fecha de cierre</label><input name="date" type="date" value="${esc(d?d.cierre:'')}"></div><div><label>Tipo</label><select name="tipo">${opts(CONV_TIPO,d?d.tipo:'Otro')}</select></div><div><label>Modalidad</label><select name="modalidad"><option value="">—</option>${opts(CONV_MOD,d?d.modalidad:'')}</select></div></div>
+    ${d&&d.dates.length?`<div><label>Fechas que encontré en la página · toca la del cierre</label><div class="dpick">${d.dates.map(x=>`<button type="button" data-act="pickdate" data-v="${x.iso}" aria-pressed="${x.iso===d.cierre}"><b>${esc(fmt(x.iso))} ${x.iso.slice(0,4)}</b><span>…${esc(x.ctx.slice(-90))}</span></button>`).join('')}</div></div>`:''}
+    <div class="row"><div><label>Costo de inscripción</label><input name="costo" value="${esc(d?d.costo:'')}" placeholder="Gratis, USD 30…"></div><div><label>Premio o beneficio</label><input name="premio" value="${esc(d?d.premio:'')}"></div><div><label>Proyecto tuyo que encaja</label><select name="serie">${sopts('')}</select></div></div>
+    <div class="row"><div><label>Temática que piden</label><input name="theme"></div><div><label>Enlace</label><input name="url" type="url" value="${esc(d?d.url:'')}" placeholder="https://"></div></div>
+    <div><label>Notas: requisitos, formato, qué enviar</label><textarea name="notes">${esc(d?d.desc:'')}</textarea></div>
+    <div style="display:flex;gap:10px;align-items:center"><button class="btn red">Guardar convocatoria</button>${d?'<button type="button" class="link" data-act="cdraftx">Descartar</button>':''}</div></form>`;
+  return `<div class="clink"><label for="curl">Pega el enlace de una convocatoria</label><div class="clrow"><input id="curl" type="url" placeholder="https://…" value="${esc(S.convUrl||'')}"><button class="btn red" data-act="leerlink">Leer la página</button></div>
+    ${S.convMsg?`<p class="muted" style="font-size:14px;margin:6px 0 0">${esc(S.convMsg)}</p>`:''}</div>
+  ${D?form(D):''}
+  <div class="pipe">${CONV_ST.map(x=>{const c=all.filter(v=>(v.status||'Por revisar')===x).length;return `<div class="${x==='Preparando'&&c?'cur':c?'on':''}">${esc(x)} <b>${c}</b></div>`}).join('')}</div>
+  <div class="cfilters"><div><span class="kicker">Tipo</span>${chips('tipo',CONV_TIPO,F.tipo)}</div><div><span class="kicker">Estado</span>${chips('st',CONV_ST,F.st)}</div>
+   <div class="cfr"><label class="fx" style="border:0;padding:0"><input type="checkbox" data-act="cclosed"${F.closed?' checked':''}><span>Mostrar las que ya cerraron</span><span></span></label>${up.length?`<button class="btn ghost small" data-act="icsall">📅 ${up.length===1?'Agregar la abierta':'Agregar las '+up.length+' abiertas'} al Calendario</button>`:''}</div></div>
+  ${list.length?`<div class="scroll"><table class="ctable"><thead><tr><th>Cierre</th><th>Convocatoria</th><th>Tipo</th><th>Costo</th><th>Premio</th><th>Proyecto</th><th>Estado</th><th></th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>`:'<div class="empty">No hay convocatorias con estos filtros.</div>'}
+  ${D?'':`<details><summary>Agregar una convocatoria a mano</summary>${form(null)}</details>`}`}
 /* Hoy en escritorio: cada franja con su panel al lado, a la misma altura */
 function hoyBands(ST,day,P,sal,chip,panelFor){const W=900,mx=24,fs=19;const t=today();
   const GL=ST.some(s=>s.grp==='d')?[['mf','Mañana · fija',1],['d','Día · flexible',0],['nf','Noche · fija',1]]:[['mf','Mañana · fija',1],['m',sal?'Día creativo · salida a tomar fotos':'Mañana creativa · libre',0],['t','Tarde de trabajo e ingresos · libre',0],['nf','Noche · fija',1]];
@@ -948,11 +1030,7 @@ function vFoto(){
     <div class="board">${IDEA_T.map(([t,c])=>{const l=list.filter(x=>ideaType(x)===t).sort((a,b)=>a.created<b.created?1:-1);return `<div class="col"><h4><span>${esc(t)}s</span><span class="pill" style="background:${c};color:#fff">${l.length}</span></h4>${l.length?l.map(x=>{const s=x.serie&&byId(x.serie);return `<div class="idea" style="border-left-color:${c}"><p>${esc(x.title)}</p><div class="meta"><span>${esc(fmt(x.created.slice(0,10)))}${s?' · '+esc(s.title):''}</span><span>${t==='Proyecto'&&!s?`<button class="link" data-act="toserie" data-id="${esc(x.id)}">Hacer serie</button>`:''}${delBtn(x.id)}</span></div></div>`}).join(''):`<div class="empty">Sin ${esc(t.toLowerCase())}s todavía.</div>`}</div>`}).join('')}</div>`}
   else if(S.tab==='linea'){const rows=[{section:'Series'},...series.map(s=>({label:s.title,start:startOf(s),end:s.meta||'',color:SERIE_C[s.status||'Idea'],text:s.status||'Idea'})),{section:'Convocatorias'},...items('conv').filter(c=>c.date).map(c=>({label:c.title,start:startOf(c)>c.date?c.date:startOf(c),end:c.date,color:CONV_C[c.status||'Por revisar'],text:'Cierra '+fmt(c.date)}))];
     body=`<p class="muted" style="margin-top:0">Cada serie va de su inicio a su fecha meta. Cada convocatoria, de cuando la anotaste a su cierre. La línea roja es hoy.</p>${timeline(rows)}<div class="legend">${SERIE_ST.map(x=>`<span><i style="background:${SERIE_C[x]}"></i>${esc(x)}</span>`).join('')}</div><div class="legend">${CONV_ST.map(x=>`<span><i style="background:${CONV_C[x]}"></i>${esc(x)}</span>`).join('')}</div>`}
-  else if(S.tab==='conv'){const list=items('conv').sort((a,b)=>{const ao=daysTo(a.date)<0,bo=daysTo(b.date)<0;return ao!==bo?(ao?1:-1):(a.date<b.date?-1:1)});
-    const sopts=`<option value="">Ninguna todavía</option>`+series.map(s=>`<option value="${esc(s.id)}">${esc(s.title)}</option>`).join('');
-    body=`<div class="pipe">${CONV_ST.map(x=>{const c=list.filter(v=>(v.status||'Por revisar')===x).length;return `<div class="${x==='Preparando'&&c?'cur':c?'on':''}">${esc(x)} <b>${c}</b></div>`}).join('')}</div>
-    ${list.length?list.map(c=>{const s=c.serie&&byId(c.serie);return `<div class="card"><i style="flex:none;width:12px;height:12px;margin-top:6px;background:${CONV_C[c.status||'Por revisar']}"></i><div class="body"><div class="t">${esc(c.title)} ${convPill(c)}</div><div class="meta">Cierra el ${esc(fmt(c.date))}${c.theme?' · Temática: '+esc(c.theme):''}${s?' · Serie: '+esc(s.title):''}${safeUrl(c.url)?` · <a class="ext" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">Abrir</a>`:''}</div>${c.notes?`<div class="meta" style="white-space:pre-line">${esc(c.notes)}</div>`:''}<div style="max-width:240px;margin-top:8px"><select data-act="ifield" data-f="status" data-id="${esc(c.id)}" aria-label="Estado">${opts(CONV_ST,c.status||'Por revisar')}</select></div></div>${delBtn(c.id)}</div>`}).join(''):'<div class="empty">Aún no hay convocatorias.</div>'}
-    <details><summary>Agregar una convocatoria</summary><form class="form" data-form="conv" style="margin-top:12px"><div class="row"><div><label>Nombre</label><input name="title" required></div><div><label>Fecha límite</label><input name="date" type="date" required></div></div><div class="row"><div><label>Temática que piden</label><input name="theme"></div><div><label>Serie que encaja</label><select name="serie">${sopts}</select></div></div><div><label>Enlace (opcional)</label><input name="url" type="url" placeholder="https://"></div><div><label>Notas: requisitos, costo, formato</label><textarea name="notes"></textarea></div><div><button class="btn red">Agregar convocatoria</button></div></form></details>`}
+  else if(S.tab==='conv'){body=convBody(series)}
   else if(S.tab==='contacto'){const list=items('contacto').sort((a,b)=>(a.next||'9')<(b.next||'9')?-1:1);
     body=`<div class="pipe">${CONT_ST.map(x=>{const c=list.filter(v=>(v.status||'Por contactar')===x).length;return `<div class="${c?'on':''}">${esc(x)} <b>${c}</b></div>`}).join('')}</div>
     ${list.length?list.map(c=>`<div class="card"><div class="body"><div class="t">${esc(c.title)}${c.next&&daysTo(c.next)<=3?' <span class="pill hot">Seguir</span>':''}</div><div class="meta">${esc([c.type,c.city,c.contact].filter(Boolean).join(' · '))}${safeUrl(c.url)?` · <a class="ext" href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener">Abrir</a>`:''}</div>${c.notes?`<div class="meta" style="white-space:pre-line">${esc(c.notes)}</div>`:''}<div class="row" style="margin-top:8px;max-width:460px"><select data-act="ifield" data-f="status" data-id="${esc(c.id)}" aria-label="Estado">${opts(CONT_ST,c.status||'Por contactar')}</select><input type="date" data-act="ifield" data-f="next" data-id="${esc(c.id)}" value="${esc(c.next||'')}" aria-label="Próximo seguimiento"></div></div>${delBtn(c.id)}</div>`).join(''):'<div class="empty">Agrega galerías, curadores y espacios que te interesen.</div>'}
@@ -1152,6 +1230,15 @@ document.addEventListener('click',e=>{
   else if(a==='pick'){S.sel=id;render(true)}
   else if(a==='go')goArea(id);
   else if(a==='range'){S.range=Number(b.dataset.v);render(true)}
+  else if(a==='leerlink'){const inp=document.getElementById('curl');const u=(inp&&inp.value||'').trim();S.convUrl=u;if(!/^https?:\/\//i.test(u)){S.convMsg='Pega un enlace que empiece por https://';render(true);return}
+    S.convMsg='Leyendo la página…';render(true);
+    (window.Bitacora&&Bitacora.leerEnlace?Bitacora.leerEnlace(u):Promise.reject(new Error('sin conexión'))).then(res=>{const d=parseConv(res&&res.html||'',u);S.convDraft=d;S.convMsg=d.title?'':'No pude leer mucho de esa página: llena lo que falte.';render(true)})
+      .catch(e=>{S.convDraft={url:u,title:'',entidad:'',desc:'',dates:[],cierre:'',costo:'',premio:'',tipo:'Otro',modalidad:''};S.convMsg=/does not exist|function|not find/i.test(String(e&&e.message))?'Falta activar la lectura de páginas en Supabase (te dejé el paso). Mientras tanto, llena los datos a mano.':'Esa página no se dejó leer. Llena los datos a mano.';render(true)})}
+  else if(a==='pickdate'){if(S.convDraft){S.convDraft.cierre=b.dataset.v;const f=b.closest('form');if(f&&f.date)f.date.value=b.dataset.v;b.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)))}}
+  else if(a==='cdraftx'){S.convDraft=null;S.convMsg='';S.convUrl='';render(true)}
+  else if(a==='cfilter'){S.cf={...(S.cf||{}),[b.dataset.k]:b.dataset.v};render(true)}
+  else if(a==='ics'){const c=byId(id);if(c)icsDownload([c],'convocatoria')}
+  else if(a==='icsall'){icsDownload(items('conv').filter(c=>c.date&&daysTo(c.date)>=0),'convocatorias')}
   else if(a==='hgo'){const ar=b.dataset.area;S.jump={a:ar,s:b.dataset.sub||''};if(view()===ar)applyJump();else location.hash=ar}
   else if(a==='rot')setRy(S.ry+Number(b.dataset.d));
   else if(a==='lgo'){S.lview=b.dataset.v;S.bOpen=null;render(true);window.scrollTo(0,0)}
@@ -1211,6 +1298,7 @@ document.addEventListener('change',e=>{
   else if(a==='pago'){const m=fmes(S.fmonth);saveMes(S.fmonth,{pagados:{...(m.pagados||{}),[el.dataset.id]:el.checked}})}
   else if(a==='ahorro')saveMes(S.fmonth,{ahorroHecho:el.checked});
   else if(a==='ingreso')saveMes(S.fmonth,{ingreso:toNum(el.value)});
+  else if(a==='cclosed'){S.cf={...(S.cf||{}),closed:el.checked};render(true)}
   else if(a==='hmeta'){const c=structuredClone(S.conf||{});c.meta={...(c.meta||{}),[el.dataset.k]:Math.max(0,Math.min(100,Number(el.value)||0))};saveConf(c)}
   else if(a==='blen'){const c=structuredClone(S.conf||{});c['b'+el.dataset.g]=Math.max(0,Number(el.value)||0);saveConf(c)}
   else if(a==='ideal'){const c=structuredClone(S.conf||{});c.ideal={...(c.ideal||{}),[el.dataset.k]:Math.max(0,Number(el.value)||0)};saveConf(c)}
@@ -1232,7 +1320,7 @@ document.addEventListener('submit',e=>{
   if(kind==='gasto'){const amount=toNum(fd.amount);if(!amount)return;addGasto({amount,cat:fd.cat,area:areaOf(fd.cat),date:fd.date||today(),note:fd.note||''});f.reset();return}
   if(kind==='fijo'){const amount=toNum(fd.amount);if(!fd.title)return;const c=structuredClone(cfg());c.fijos=[...(c.fijos||[]),{id:'f'+Date.now().toString(36),name:fd.title,amount}];saveCfg(c);return}
   if(!fd.title)return;const data={kind,title:fd.title};
-  if(kind==='conv')Object.assign(data,{date:fd.date,theme:fd.theme||'',serie:fd.serie||'',url:fd.url||'',notes:fd.notes||'',status:'Por revisar'});
+  if(kind==='conv'){Object.assign(data,{date:fd.date||'',theme:fd.theme||'',serie:fd.serie||'',url:safeUrl(fd.url)||'',notes:fd.notes||'',status:'Por revisar',entidad:fd.entidad||'',tipo:fd.tipo||'Otro',modalidad:fd.modalidad||'',costo:fd.costo||'',premio:fd.premio||''});S.convDraft=null;S.convUrl='';S.convMsg=''}
   if(kind==='lec')Object.assign(data,{author:fd.author||'',type:fd.type||'Teoría',status:'Pendiente'});
   if(kind==='ref')Object.assign(data,{origen:fd.origen||'',nota:fd.nota||'',medios:[],ejes:[],capas:[],where:'',why:'',take:'',obras:'',url:''});
   if(kind==='fuente'){if(!safeUrl(fd.url)){say('El enlace debe empezar por https://');return}Object.assign(data,{url:fd.url,notes:fd.notes||''})}
