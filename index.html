@@ -145,6 +145,20 @@ details[open]>summary::after{content:"–"}
 .pchips button:hover{border-color:var(--cd)}
 .path .hit{border-radius:50%}
 .path .hit[aria-pressed=true]{outline:1.5px dotted var(--soft)!important;outline-offset:8px!important}
+/* hoy: franjas con panel al lado */
+.bands{margin-top:10px}
+.band{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:0 40px;align-items:stretch}
+.bl{display:flex;flex-direction:column}.bsvg{position:relative}.bsvg svg{display:block;width:100%;height:auto}
+.bsvg .hit{position:absolute;border-radius:50%;background:transparent;border:0;cursor:pointer;padding:0}
+.bfill{flex:1;min-height:0}
+.br{padding:44px 0 22px}.br .steppanel{margin:12px 0 0}.br .pg p{margin:0 0 8px;font-size:14px;color:var(--soft)}
+/* secciones con la misma línea gráfica */
+h3{border-top:2px solid var(--ink);padding-top:10px;font-size:13px;letter-spacing:.16em;text-transform:uppercase;font-weight:800}
+h3 .n{font-size:13px;letter-spacing:.1em}
+input,select,textarea{background:transparent;border:0;border-bottom:1.5px solid var(--ink);padding:10px 2px}
+textarea{border:0;border-left:3px solid var(--bluetop);padding:8px 14px}
+.empty{border:0;border-top:1px dashed var(--line);padding:12px 0}
+.chk{border-radius:50%}
 /* paleta: un color por área, todo sobre el crema */
 :root{--paper:transparent;--bluesoft:color-mix(in srgb,var(--bluetop) 32%,transparent)}
 :root[data-area]:not([data-area='']){--mist:color-mix(in srgb,var(--bluetop) 70%,var(--blue));--stone:color-mix(in srgb,var(--blue) 55%,var(--bg))}
@@ -689,6 +703,49 @@ function applyJump(){const j=S.jump;if(!j)return;S.jump=null;const v=view();if(v
   else if(v==='habitos'){const i=['constancia','calendario','rachas'].indexOf(sub);const dt=app.querySelectorAll('details')[i];if(dt){dt.open=true;scr(dt)}}
   else if(v==='hoy'){if(sub==='tareas')scr(app.querySelectorAll('h3')[0]);else if(sub==='registro')scr(document.getElementById('nota'))}}
 
+/* Hoy en escritorio: cada franja con su panel al lado, a la misma altura */
+function hoyBands(ST,day,P,sal,chip,panelFor){const W=900,mx=24,fs=19;const t=today();
+  const GL=ST.some(s=>s.grp==='d')?[['mf','Mañana · fija',1],['d','Día · flexible',0],['nf','Noche · fija',1]]:[['mf','Mañana · fija',1],['m',sal?'Día creativo · salida a tomar fotos':'Mañana creativa · libre',0],['t','Tarde de trabajo e ingresos · libre',0],['nf','Noche · fija',1]];
+  const bands=GL.map(([g,l,fx])=>({g,l,fx,steps:ST.map((s,i)=>({s,i})).filter(o=>o.s.grp===g)})).filter(b=>b.steps.length);
+  const cur=ST.findIndex(s=>!s.pick&&stepPct(s,day)<100);let inX=null,inCol=null,html='';
+  bands.forEach((b,bi)=>{const n=b.steps.length;const rOf=s=>s.fixed?Math.min(54,(W-2*mx)/n*0.3):Math.min(112,46+Math.sqrt(s.id||0)*3.9);
+    const R=Math.max(...b.steps.map(o=>rOf(o.s)));const cy=64+R,H=Math.round(cy+R+66);
+    const pts=b.steps.map((o,j)=>{const jj=bi%2?n-1-j:j;const r=rOf(o.s);return {o,r,x:n===1?W/2:mx+R+(W-2*mx-2*R)*jj/(n-1),y:cy}});
+    const right=bi%2===0;const first=pts[0],last=pts[pts.length-1];const outX=last.x+(right?1:-1)*(last.r+22);
+    const lineSt=(fixed,area)=>fixed?`stroke="var(--ink)" stroke-width="2.6"`:`stroke="${ACOL[area].m}" stroke-width="2.2" stroke-dasharray="7 7"`;
+    let g=`<line x1="${mx}" x2="${W-mx}" y1="8" y2="8" stroke="var(--ink)" stroke-width="${b.fx?2:1}"${b.fx?'':' stroke-dasharray="4 6"'} opacity="${b.fx?0.9:0.5}"/>
+    <text x="${mx}" y="30" font-size="${fs-5}" font-weight="800" letter-spacing="2.5" fill="var(--ink)">${esc(b.l.toUpperCase())}</text><text x="${W-mx}" y="30" text-anchor="end" font-size="${fs-5}" font-weight="700" letter-spacing="2" fill="var(--soft)">${b.fx?'FIJO':'TÚ ELIGES'}</text>`;
+    // entrada desde la franja anterior y salida hacia la siguiente, por el costado de los círculos
+    const fA=first.o.s,lA=last.o.s;
+    if(inX!==null){const ex=first.x+(inX>first.x?1:-1)*first.r;g+=`<path d="M ${inX} 0 C ${inX} ${cy*0.7}, ${ex+(inX>first.x?14:-14)} ${cy}, ${ex} ${cy}" fill="none" ${lineSt(inCol.fixed&&fA.fixed,(fA.fixed?inCol:fA).area)} stroke-linecap="round"/>`}
+    for(let j=0;j<pts.length-1;j++){const a=pts[j],c=pts[j+1];g+=`<line x1="${a.x}" y1="${a.y}" x2="${c.x}" y2="${c.y}" ${lineSt(a.o.s.fixed&&c.o.s.fixed,(c.o.s.fixed?a.o.s:c.o.s).area)}/>`}
+    const hasNext=bi<bands.length-1;const nxt=hasNext?bands[bi+1].steps[0].s:null;
+    if(hasNext){const sx=last.x+(right?1:-1)*last.r;g+=`<path d="M ${sx} ${cy} C ${outX} ${cy}, ${outX} ${cy+R*0.6}, ${outX} ${H}" fill="none" ${lineSt(lA.fixed&&nxt.fixed,(lA.fixed?nxt:lA).area)} stroke-linecap="round"/>`}
+    pts.forEach(p=>{g+=stepCircle(p.o.s,p.o.i,p.x,p.y,p.r,day,fs)});
+    if(b.steps.some(o=>o.i===cur)){const p=pts.find(q=>q.o.i===cur);g+=`<g transform="translate(${p.x-p.r-28} ${p.y-56})" color="var(--ink)">${FIG(56).replace('<svg ','<svg x="0" y="0" ')}</g>`}
+    const hits=pts.map(p=>`<button class="hit" data-act="step" data-k="${p.o.s.k}" aria-pressed="${S.step===p.o.s.k}" aria-label="${esc(p.o.s.n)}" style="left:${(p.x-p.r)/W*100}%;top:${(p.y-p.r)/H*100}%;width:${2*p.r/W*100}%;height:${2*p.r/H*100}%"></button>`).join('');
+    const fillSt=hasNext?(lA.fixed&&nxt.fixed?'border-left:2.6px solid var(--ink)':`border-left:2.2px dashed ${ACOL[(lA.fixed?nxt:lA).area].m}`):'';
+    // panel de la derecha
+    const inBand=k=>b.steps.some(o=>o.s.k===k);const bc=b.steps.find(o=>!o.s.pick&&stepPct(o.s,day)<100);
+    const fb=bc||b.steps.find(o=>!o.s.pick);const sel=S.step&&inBand(S.step)?S.step:(fb?fb.s.k:null);const ss=sel?ST.find(s=>s.k===sel):null;
+    let rp='';
+    if(b.g==='m'||b.g==='t'){const len=blockLen(b.g),lab=b.g==='m'?['Mañana creativa',ACOL.arte.d]:['Tarde de trabajo e ingresos',ACOL.finanzas.d];
+      rp+=`<div class="pg"><p><b style="color:${lab[1]}">${lab[0]}</b> · ${esc(hm(len))} · elige 1 o 2</p><div class="pchips">${ACTS[b.g].map(a=>chip(b.g,a)).join('')}</div><p class="muted" style="font-size:13px;margin:8px 0 0">Una actividad ocupa todo el bloque; dos, la mitad cada una.</p></div>`;
+      if(b.g==='m'&&sal)rp+=`<p class="muted" style="font-size:14px;margin:6px 0 0">Hoy sales a tomar fotos: la tarde también es creativa.</p>`;
+      if(ss&&!ss.pick)rp+=panelFor(ss)}
+    else if(ss)rp+=panelFor(ss);
+    html+=`<div class="band"><div class="bl"><div class="bsvg"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(b.l)}">${g}</svg>${hits}</div>${hasNext?`<div class="bfill" style="margin-left:calc(${outX/W*100}% - 1px);${fillSt}"></div>`:''}</div><div class="br">${rp}</div></div>`;
+    inX=outX;inCol=lA});
+  return `<div class="bands">${html}</div>`}
+function stepCircle(s,i,x,y,r,day,fs){const A=ACOL[s.area],pc=s.pick?0:stepPct(s,day);const k=Math.sqrt(pc/100);const n=s.fixed?3:6;const mins=Number((day.mins||{})[s.k])||0;
+  let g=`<radialGradient id="hg${i}"><stop offset="0" stop-color="${A.d}"/><stop offset=".55" stop-color="${A.m}"/><stop offset="1" stop-color="${A.l}"/></radialGradient>
+  <circle cx="${x}" cy="${y}" r="${r}" fill="var(--bg)"/><circle cx="${x}" cy="${y}" r="${r}" fill="${A.l}" fill-opacity="${s.fixed?0.18:0.28}"/>${pc?`<circle cx="${x}" cy="${y}" r="${(r*k).toFixed(1)}" fill="url(#hg${i})" fill-opacity=".9"/>`:''}`;
+  for(let q=1;q<=n;q++){const rr=r*(1-q/(n+1)*0.82);const inside=rr<r*k;g+=`<circle cx="${x}" cy="${y}" r="${rr.toFixed(1)}" fill="none" stroke="${inside?'var(--bg)':A.m}" stroke-opacity="${inside?0.55:0.45}" stroke-width="${inside?1:0.9}"/>`}
+  g+=`<circle cx="${x}" cy="${y}" r="${r}" fill="none" stroke="${s.fixed?'var(--ink)':A.d}" stroke-width="${s.fixed?3:2.2}"${s.fixed?'':' stroke-dasharray="6 6"'}/>`;
+  g+=`<circle cx="${x}" cy="${y}" r="${(r*0.34).toFixed(1)}" fill="var(--bg)"/>`;
+  g+=s.pick?`<text x="${x}" y="${y+9}" text-anchor="middle" font-size="${fs+8}" font-weight="800" fill="${A.d}">+</text>`:`<text x="${x}" y="${y+6}" text-anchor="middle" font-size="${Math.max(fs-2,Math.min(fs+6,r*0.3))}" font-weight="800" fill="${A.d}">${pc}%</text>`;
+  g+=`<text x="${x}" y="${y+r+28}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="var(--ink)">${s.pick?esc(s.n):pad(i+1)+' '+esc(s.s)}</text>
+  <text x="${x}" y="${y+r+52}" text-anchor="middle" font-size="${fs-3}" fill="var(--soft)">${s.pick?'Elige qué harás · '+esc(hm(s.id)):s.toggle?(day[s.k]?'Hecho':'Pendiente'):`${esc(hm(mins))} de ${esc(hm(s.id))}`}</text>`;return g}
 function vHoy(){
   const t=today(),day=dayOf(t);const ST=stepsFor(t);const P=day.plan||{};const sal=(P.m||[]).includes('salida');
   const bm=blockLen('m'),bt=blockLen('t');const small=innerWidth<640;const W=small?600:900,m=small?16:24,mx=small?78:24;
@@ -724,15 +781,16 @@ function vHoy(){
    <div class="pg"><p><b style="color:${ACOL.arte.d}">Mañana creativa</b> · ${esc(hm(bm))} · elige 1 o 2</p><div class="pchips">${ACTS.m.map(a=>chip('m',a)).join('')}</div></div>
    <div class="pg"><p><b style="color:${ACOL.finanzas.d}">Tarde de trabajo e ingresos</b> · ${esc(hm(bt))} · elige 1 o 2</p>${sal?`<p class="muted" style="font-size:14px;margin:4px 0 0">Hoy sales a tomar fotos: la tarde también es creativa.</p>`:`<div class="pchips">${ACTS.t.map(a=>chip('t',a)).join('')}</div>`}</div>
    <p class="muted" style="font-size:13px;margin:8px 0 0">Una actividad ocupa todo el bloque; dos, la mitad cada una.</p></div>`;
-  const ss=ST.find(s=>s.k===(S.step||(cur>=0?ST[cur].k:ST[0].k)))||ST[0];const si=ST.indexOf(ss);const sm=Number((day.mins||{})[ss.k])||0;const SA=ACOL[ss.area];
+  const panelFor=ss=>{const si=ST.indexOf(ss);const sm=Number((day.mins||{})[ss.k])||0;const SA=ACOL[ss.area];const act=S.step===ss.k?'':` data-k="${ss.k}"`;
   const pst=`style="--red:${SA.d};--bluesoft:color-mix(in srgb,${SA.l} 40%,transparent)"`;
-  const panel=ss.pick?`<div class="steppanel" ${pst}><div style="font-size:20px;font-weight:700">${esc(ss.n)}</div><p class="muted" style="margin:4px 0 0">Elige arriba qué harás en este bloque.</p></div>`
-   :ss.toggle?`<div class="steppanel" ${pst}><div class="muted" style="font-weight:700">${pad(si+1)} · ${ss.fixed?'fijo':'libre'}</div><div style="font-size:22px;font-weight:700">${esc(ss.n)}</div><div class="btns"><button class="btn ${day[ss.k]?'ghost':'red'}" data-act="togstep">${day[ss.k]?'Desmarcar':'Lo logré'}</button></div></div>`
+  const p=ss.pick?`<div class="steppanel" ${pst}><div style="font-size:20px;font-weight:700">${esc(ss.n)}</div><p class="muted" style="margin:4px 0 0">Elige arriba qué harás en este bloque.</p></div>`
+   :ss.toggle?`<div class="steppanel" ${pst}><div class="muted" style="font-weight:700">${pad(si+1)} · ${ss.fixed?'fijo':'libre'}</div><div style="font-size:22px;font-weight:700">${esc(ss.n)}</div><div class="btns"><button class="btn ${day[ss.k]?'ghost':'red'}" data-act="togstep" data-k="${ss.k}">${day[ss.k]?'Desmarcar':'Lo logré'}</button></div></div>`
    :`<div class="steppanel" ${pst}><div class="muted" style="font-weight:700">${pad(si+1)} · ${ss.fixed?'fijo':'libre'}</div><div style="font-size:22px;font-weight:700">${esc(ss.n)}</div><div style="font-size:15px;margin-top:4px">${esc(hm(sm))} de ${esc(hm(ss.id))}${ss.min?` · mínimo ${esc(hm(ss.min))}`:''}</div><div class="meter"><i style="width:${stepPct(ss,day)}%;background:${SA.m}"></i></div>
-   <div class="btns"><button class="btn ghost small" data-act="mins" data-v="-15">−15 min</button><button class="btn ghost small" data-act="mins" data-v="15">+15 min</button><button class="btn ghost small" data-act="mins" data-v="30">+30 min</button><button class="btn ghost small" data-act="mins" data-v="60">+1 h</button><button class="btn red small" data-act="minsfull">Completo</button>${sm?'<button class="link" data-act="minszero">Reiniciar</button>':''}</div></div>`;
+   <div class="btns"><button class="btn ghost small" data-act="mins"${act} data-v="-15">−15 min</button><button class="btn ghost small" data-act="mins"${act} data-v="15">+15 min</button><button class="btn ghost small" data-act="mins"${act} data-v="30">+30 min</button><button class="btn ghost small" data-act="mins"${act} data-v="60">+1 h</button><button class="btn red small" data-act="minsfull"${act}>Completo</button>${sm?`<button class="link" data-act="minszero"${act}>Reiniciar</button>`:''}</div></div>`;return p};
+  const ss=ST.find(s=>s.k===(S.step||(cur>=0?ST[cur].k:ST[0].k)))||ST[0];const panel=panelFor(ss);
   const tasks=items('tarea').filter(x=>!x.done&&(!x.date||x.date<=t)).sort((a,b)=>(a.date||'9')<(b.date||'9')?-1:1);
   return `<div class="big red" style="margin-top:14px;color:${ACOL.hoy.d}">${dayProgress(t)}%</div>
-  ${small?plan:''}<div class="grid2" style="margin-top:6px;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)"><div class="path">${svg}${hits}</div><div style="position:sticky;top:90px;align-self:start">${small?'':plan}${panel}</div></div>
+  ${small?`${plan}<div class="grid2" style="margin-top:6px"><div class="path">${svg}${hits}</div><div>${panel}</div></div>`:hoyBands(ST,day,P,sal,chip,panelFor)}
   <div class="grid2">
   <section>${sec(1,'Tareas para hoy')}<form class="form" data-form="tarea" style="grid-template-columns:minmax(0,1fr) auto;align-items:end"><div><label for="qt">Nueva tarea</label><input id="qt" name="title" required placeholder="Ej: escanear rollo 12"></div><button class="btn">Agregar</button></form>
   ${tasks.length?tasks.map(taskCard).join(''):'<div class="empty">No hay tareas pendientes para hoy.</div>'}</section>
@@ -1080,10 +1138,10 @@ document.addEventListener('click',e=>{
   else if(a==='rjump'){e.preventDefault();const el=[...app.querySelectorAll('.rgroup')].find(x=>x.dataset.g===b.dataset.g);if(el)el.scrollIntoView({behavior:'smooth'})}
   else if(a==='rtag'){const r=byId(id);if(r){const f=b.dataset.f,v=b.dataset.v;const cur=[...(r[f]||[])];const i=cur.indexOf(v);if(i>=0)cur.splice(i,1);else cur.push(v);patch(id,{[f]:cur});render(true)}}
   else if(a==='step'){S.step=b.dataset.k;render(true);if(innerWidth<860){const el=app.querySelector('.steppanel');if(el)el.scrollIntoView({block:'center'})}}
-  else if(a==='mins'||a==='minsfull'||a==='minszero'){const day=dayOf(t);const AS=activeSteps();const cur=AS.findIndex(s=>!s.pick&&stepPct(s,day)<100);const k=S.step||(cur>=0?AS[cur].k:AS[0].k);const s=AS.find(x=>x.k===k);if(!s||s.pick)return;const m=Number((day.mins||{})[k])||0;
+  else if(a==='mins'||a==='minsfull'||a==='minszero'){const day=dayOf(t);const AS=activeSteps();const cur=AS.findIndex(s=>!s.pick&&stepPct(s,day)<100);const k=b.dataset.k||S.step||(cur>=0?AS[cur].k:AS[0].k);const s=AS.find(x=>x.k===k);if(!s||s.pick)return;const m=Number((day.mins||{})[k])||0;
     setMins(t,k,a==='minsfull'?Math.max(m,s.id):a==='minszero'?0:m+Number(b.dataset.v))}
   else if(a==='plan'){const g=b.dataset.g,k=b.dataset.k;editDay(t,day=>{const P=day.plan||{m:[],t:[]};let L=[...(P[g]||[])];if(L.includes(k))L=L.filter(x=>x!==k);else if(k==='salida')L=['salida'];else{L=L.filter(x=>x!=='salida');L.push(k);if(L.length>2)L.shift()}P[g]=L;day.plan=P});S.step=null}
-  else if(a==='togstep'){editDay(t,day=>{if(day.cel)delete day.cel;else day.cel='full'})}
+  else if(a==='togstep'){const k=b.dataset.k||'cel';editDay(t,day=>{if(day[k])delete day[k];else day[k]='full'})}
   else if(a==='tab'){S.tab=b.dataset.tab;S.askDel=null;S.serie=null;render(true);window.scrollTo(0,0)}
   else if(a==='home'){S.tab=null;S.serie=null;render(true);window.scrollTo(0,0)}
   else if(a==='fgo'){S.fview=b.dataset.v;render(true);if(b.dataset.add){const el=document.getElementById('addg');if(el)el.scrollIntoView()}else window.scrollTo(0,0)}
