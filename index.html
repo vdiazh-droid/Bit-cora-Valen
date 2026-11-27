@@ -419,7 +419,7 @@ function stepsFor(date){const day=dayOf(date),mins=day.mins||{};
   const blk=(g,len,label)=>{if(!len)return;const sel=(P[g]||[]).filter(k=>ACTS[g].some(a=>a[0]===k));if(!sel.length){out.push({k:'pick_'+g,n:label,s:label,grp:g,pick:true,id:len,fixed:false,area:g==='m'?'arte':'finanzas'});return}
     sel.forEach(k=>{const a=ACTS[g].find(x=>x[0]===k);out.push({k,n:a[1].replace(' · todo el día',''),s:({ref:'Referentes',leer:'Leer',conv:'Convocatorias',apl:'Aplicar',edit:'Editar',salida:'Tomar fotos',emp:'Buscar trabajo',arq:'Arquitectura',neg:'Negocio digital',trabm:'Trabajo',trabt:'Trabajo'})[k]||a[1],grp:g,id:k==='salida'?blockLen('m')+blockLen('t'):Math.round(len/sel.length),min:45,fixed:false,area:a[3],h:a[2]})})};
   blk('m',blockLen('m'),'Mañana creativa');if(!sal)blk('t',blockLen('t'),'Tarde de trabajo');
-  const cie=STEPS.find(s=>s.k==='cie');out.push(fx(cie,'nf'));STEPS.filter(s=>s.f==='n').forEach(s=>out.push(fx(s,'nf')));return out}
+  STEPS.filter(s=>s.f==='n').forEach(s=>out.push(fx(s,'nf')));return out}
 const activeSteps=()=>stepsFor(today());
 const FOCO=['Descanso y revisión semanal','Planear: convocatorias y metas','Producción: salir a tomar fotos','Edición: escanear y seleccionar','Producción: salir a tomar fotos','Investigación: referentes','Salida larga o exposiciones'];
 const CONV_ST=['Por revisar','Preparando','Enviada','Seleccionada','No seleccionada'];
